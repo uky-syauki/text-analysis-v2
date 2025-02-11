@@ -49,7 +49,7 @@ export default function Home() {
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Masukkan Anda"
+          placeholder="Masukan Anda"
           className={styles.input}
           required
         />
