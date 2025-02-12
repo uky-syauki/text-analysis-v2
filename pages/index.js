@@ -1,22 +1,43 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import styles from '../styles/Home.module.css';
+import Mammoth from "mammoth";
 
 export default function Home() {
+  const [text, setText] = useState("");
   const [question, setQuestion] = useState('');
   const [response, setResponse] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleFileUpload = async (event) => {
+    if (question) return; // Hanya terima salah satu input
+    
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const arrayBuffer = e.target.result;
+      const { value } = await Mammoth.extractRawText({ arrayBuffer });
+      setText(value);
+      console.log(`File text: ${value}`);
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    console.log(`Text question: ${ text || question} `);
+    // console.log(`Extracted Text: ${text}`);
 
     try {
       const res = await fetch('/api/quran', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question: text || question }),
       });
 
       if (!res.ok) {
@@ -26,13 +47,13 @@ export default function Home() {
       const data = await res.json();
       const rawText = data.message.candidates[0].content.parts[0].text;
 
-      // Hapus ```json\n dan ``` di awal/akhir
       const cleanedText = rawText.replace(/```json\n|\n```/g, "");
-
-      // Parse menjadi objek JSON
       const parsedData = JSON.parse(cleanedText);
 
       setResponse(parsedData);
+      setText("");
+      setQuestion("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       setError(error.message);
     } finally {
@@ -51,8 +72,9 @@ export default function Home() {
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="Masukan Anda"
           className={styles.input}
-          required
+          disabled={text ? true : false}
         />
+        <input ref={fileInputRef} type='file' accept='.docx' onChange={handleFileUpload} className='mt-2' disabled={question ? true : false} />
         <button type="submit" className={styles.button} disabled={isLoading}>
           {isLoading ? 'Memproses...' : 'Kirim'}
         </button>
@@ -72,7 +94,6 @@ export default function Home() {
               <br />
             </div>
           ))}
-
           </div>
         </div>
       )}
